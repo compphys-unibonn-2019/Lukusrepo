@@ -1,0 +1,120 @@
+---
+title: "Tutorial 3"
+author: "Laura Zywietz Rolon"
+date: "11/3/2019"
+output: html_document
+header-includes :
+- \usepackage{enumerate}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Inverse Transform Method
+
+**Task 1**
+
+Use the *generalized inverse transform method* to sample $X \sim f_{X}$
+\[ f_{X} = \frac{1}{\pi} \frac{1}{\sqrt{x(1-x)}}, \qquad \text{for} \quad 0 < x < 1\]
+
+a) derive the c.d.f. $F_{X}$ and its inverse
+b) confirm numerically that your derivation is correct by computing $F_{X}^{-1}(F_{X}(x))$
+c) use the inverse function method to sample $X \sim f_{X}$, plot a histogram to confirm visually that the distribution lines up with the target p.d.f.
+
+**Solution 1**
+
+a) c.d.f.: \[ F_{X}(x) = \int_{0}^{x} \frac{1}{\pi} \frac{1}{\sqrt{x'(1-x')}}dx' \stackrel{x' = y^2}{=} \frac{1}{\pi} \int_{0}^{\sqrt{x}} \frac{1}{\sqrt{y^2(1-y^2)}}2ydy = \frac{2}{\pi} \int_{0}^{\sqrt{x}} \frac{1}{\sqrt{1-y^2}}dy = \frac{2}{\pi} \lbrack \arcsin(\sqrt{x})\rbrack_{0}^{\sqrt{x}} = \frac{2}{\pi} \arcsin(\sqrt{x}) \]  
+Inverse of $F_{X}$: \[F^{-1}(y) = \sin^2(\dfrac{\pi y}{2})\]
+
+b)  \[F_{X}^{-1}(F_{X}(x)) = \sin^2(\dfrac{\pi F_{X}(x) }{2}) = \sin^2(\dfrac{\frac{2}{\pi} \arcsin(\sqrt{x})\pi}{2}) = x \]
+
+c)
+```{r}
+#Inverse Transform Method
+N = 10000
+u = runif(N)
+
+f = function(y){
+  sin(pi/2*y)*sin(pi/2*y)
+}
+
+inversef = function(x){
+  2/pi * asin(sqrt(x))
+}
+
+d = function(x){
+  1/pi/sqrt(x*(1-x))
+}
+
+#n = c(1:100)/100
+#plot(n, inversef(f(n)))
+
+hist(f(u), main = "", breaks= 40, freq=FALSE, xlab = "x", ylab= "fX")
+points(u, d(u), col= "blue")
+#points(c(1:100)/100, d(c(1:100)/100))
+```
+**Task 2**
+
+Write a computer program which implements a linear congruential random number generator given by the following recurrence relation:
+\[ X_{i+1} = a \cdot X_{i} \quad \text{mod} \quad m\]
+and study its properties for different pairs of
+\[ (a, m) = (7^5, 2^{31}-1), (19, 6788793), (65539, 2^{31})\]
+i.e. calculate its mean value and variance. Do they agree with your expectations?
+The last (a,m) pair corresponds to an infamous random number generator named RANDU.
+
+Finally, generate plots of order 10000 points of
+\[ (X_{i}/m, X_{i+1}/m, X_{i+2}/m), \qquad i = 1,2,...\]
+(3d scatter plots). Can you visually observe correlations? 
+You will see why RANDU became infamous.
+
+**Solution 2**
+
+```{r}
+#Linear Congruential Random Number Generator
+lCRNG <- function(a, m, v){
+  (a * v) %% m 
+}
+
+generateRN <- function(a, m, N){
+  v <- c(1:N)
+  v[1] <- 42
+  for(i in c(2:N)){
+    v[i] <- lCRNG(a, m, v[i-1])
+  }
+  return(v)
+}
+
+#Execution
+a <- c(7**5, 19, 65539)
+m <- c(2**31-1, 6788793, 2**21)
+N <- 10000
+r <- matrix(nrow = N, ncol = 3)
+meanValue <- c(1:3)
+varianceValue <- c(1:3)
+for(i in c(1:3)){
+  r[ ,i] <- generateRN(a[i], m[i], N)/m[i]
+  meanValue[i] <- mean(r[ ,i])
+  varianceValue[i] <- var(r[, i])
+}
+#currentVal <- 1
+#r <- generateRN(a[currentVal], m[currentVal], N)
+#print(r)
+hist(r[ ,1], main="(a, m) = (7**5, 2**31-1)", freq=FALSE)
+hist(r[ ,2], main="(a, m) = (19, 6788793)", freq=FALSE)
+hist(r[ ,3], main="(a, m) = (65539, 2**21)", freq=FALSE)
+
+# print("Mean:")
+# print(meanValue)
+# print("Variance:")
+# print(varianceValue)
+
+#scatterplot
+library(scatterplot3d)
+library(rgl)
+
+idx <- c(1:9998)
+scatterplot3d(x=r[idx, 3], y=r[idx+1, 3], z=r[idx+2, 3], angle=20, xlab="x", ylab="y", zlab="z")
+#plot3d(x=r[idx, 3], y=r[idx+1, 3], z=r[idx+2, 3], angle=20, xlab="x", ylab="y", zlab="z")
+
+```
