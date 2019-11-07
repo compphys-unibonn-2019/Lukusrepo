@@ -1,0 +1,245 @@
+---
+title: "Tutorial 4"
+author: "Laura Zywietz Rolón"
+date: "11/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Task 1: Central Limit Theorem
+
+1: In this exercise we will study the convergence properties of the central limit theorem (CLT). Consider $X_1^{\alpha}, X_2^{\alpha}, ...$ i.i.d. random variables with p.d.f.
+\[ f_{\alpha}(x) = \frac{1}{2\alpha}|x|^{-1-\frac{1}{\alpha}}\mathbb{1}_{\lbrace|x| \geq 1\rbrace },\]
+where $\alpha \in (0, 1)$.
+
+a. Determine the c.d.f. $F_{\alpha}$ and its inverse analytically.
+
+**Solution**: 
+
+1. c.d.f for $x \geq 1$: 
+$$
+\begin{aligned}
+F_{\alpha}(x) = \int_{-\infty}^{x} f_{\alpha}(x')dx' &= \int_{-\infty}^{x}\frac{1}{2\alpha}|x|^{-1-\frac{1}{\alpha}}\mathbb{1}_{\lbrace|x| \geq 1\rbrace }\\
+&= \int_{-\infty}^{-1} \frac{1}{2\alpha} (-x')^{-1-\frac{1}{\alpha}}dx' + \int_{1}^{x} \frac{1}{2\alpha} x'^{-1-\frac{1}{\alpha}}dx'\\
+&= \frac{1}{2\alpha} \biggl( (-1)^{-1-\frac{1}{\alpha}}\cdot \lbrack (-\alpha) \cdot x'^{-\frac{1}{\alpha}}\rbrack_{-\infty}^{-1} + \lbrack (-\alpha) \cdot x'^{-\frac{1}{\alpha}}\rbrack_{1}^{x}\biggl)\\
+&= \frac{1}{2} \biggl( (-1)^{-\frac{2}{\alpha}} - x^{-\frac{1}{\alpha}} + 1 \biggl) = 1 - \frac{1}{2} x^{-\frac{1}{\alpha}}\\
+&= 1 - \frac{1}{2\sqrt[\alpha]{x}}
+\end{aligned}
+$$
+2. c.d.f for $x \leq -1$:
+$$
+\begin{aligned}
+F_{\alpha}(x) = \int_{-\infty}^{x} f_{\alpha}(x')dx' &= \int_{-\infty}^{x}\frac{1}{2\alpha}|x|^{-1-\frac{1}{\alpha}}\mathbb{1}_{\lbrace|x| \geq 1\rbrace }\\
+&= \int_{-\infty}^{x} \frac{1}{2\alpha} (-x')^{-1-\frac{1}{\alpha}}dx'\\
+&= \frac{1}{2\alpha} (-1)^{-1-\frac{1}{\alpha}}\cdot \lbrack (-\alpha) \cdot x'^{-\frac{1}{\alpha}}\rbrack_{-\infty}^{x}\\
+&= \frac{1}{2} (-1)^{-\frac{1}{\alpha}}x^{-\frac{1}{\alpha}}\\
+&= \frac{1}{2\sqrt[\alpha]{-x}}
+\end{aligned}
+$$
+We therefore have: 
+$$
+F_{\alpha}(x) = 
+\begin{cases}
+1 - \frac{1}{2\sqrt[\alpha]{x}}, & x \geq 1  \\
+\frac{1}{2\sqrt[\alpha]{-x}}, & x \leq -1  \\
+\end{cases}
+$$
+The Inverse c.d.f. $F_{\alpha}^{-1}(y)$ is then given by:
+$$
+F_{\alpha}^{-1}(y) = 
+\begin{cases}
+\frac{1}{2^{\alpha} (1- y)^{\alpha}}, & \frac{1}{2} < y < 1  \\
+-\frac{1}{(2y)^{\alpha}}, & 0 < y \leq \frac{1}{2}  \\
+\end{cases}
+$$
+And therefore one can easily see: $F_{\alpha}^{-1}(F_{\alpha}(x)) = x$ in both cases.
+
+b. Set up the *generalized inverse transform method* for sampling $X \sim f_{\alpha}$. Verify your sampling by comparing your observed distribution via the known pdf and cdf.
+
+**Solution**:
+
+```{r}
+#parameter
+N = 100000
+u = runif(N) 
+p = runif(N, min=-1000, max=1000)
+a = 0.3
+
+#inverse cdf
+f <- function(y, a){
+  idy1 <- which(0.5 < y & y < 1)
+  idy2 <- which(0 < y & y <= 0.5)
+  
+  res <- rep(0, length(y))
+  res[idy1] <- (1./(2*(1-y[idy1]))**a)
+  res[idy2] <- (-1./(2*y[idy2])**a)
+  return(res)
+}
+
+#cdf
+inversef <- function(x, a){
+  b <- 1./a
+  idx1 <- which(x <= -1)
+  idx2 <- which(x >= 1)
+  
+  res <- rep(0.5, length(x))
+  res[idx1] <- (1/2/(-x[idx1])**b)
+  res[idx2] <- 1-1/(2*x[idx2]**b)
+  return(res)
+}
+
+#pdf
+d <- function(x, a){
+  b <- 1./a
+  res <- rep(0, length(x))
+  idx <- which(abs(x) >= 1)
+  res[idx] <- (1./(2*a) * 1/abs(x[idx])*1/abs(x[idx])**b)
+  return(res)
+}
+
+#result:
+hist(f(u, a), main="Result:", breaks= 300, freq=FALSE, xlim=c(-5,5), xlab= "f_a(x)")
+points(p, d(p, a), col= "blue")
+
+#plot pdf:
+plot(x=p, y=d(p, a), col = "green",xlim = c(-5, 5), xlab= "x", ylab= "f_a(x)", main="pdf")
+
+#plot cdf:
+plot(x=p, y=inversef(p, a), col= "violet", xlim=c(-5,5), ylab="F_a(x)", xlab="x", main="cdf")
+```
+
+
+c. Consider the partial sums
+\[S_{K}^{\alpha} = \frac{1}{\sqrt{K\text{Var}(X_1^{\alpha})}} \sum_{n=1}^{K} X_n^{\alpha}, \qquad X_n \sim f_{\alpha} \forall n \]
+Implement the sampling of $S_{K}^{\alpha}$.
+
+**Solution:**
+
+```{r}
+K = 10
+N = 10**5
+x <- sample(f(u,a), size=N, replace = TRUE, prob = NULL)
+xs <- x/sqrt(abs(var(x)))
+Xs <- array(xs, dim=c(K, N/K))
+Sk <- apply(X=Xs, MARGIN=2, FUN=sum)/sqrt(K)
+s <- paste0("Histogram of S_K with K = ", toString(K))
+hist(Sk, main=s, breaks= 25, freq=FALSE)
+```
+
+d. Sample $S_{K}^{\alpha}$ for $\alpha = 0.1, 0.25, 0.45$ and $K=100$ and compare your observed distribution to $N_{0,1}$ in a Q-Q-plot. Use $N = 10^6$ samples. You can employ *Sturge's formula* $N_{\text{bin}} = \log_{2}(N) +1$ for the binning.
+
+**Solution:**
+```{r, echo=FALSE}
+#first try
+
+#sampling with given alpha
+# nx <- matrix(0, nrow=N, ncol=length(alpha))
+# nxs <- matrix(0, nrow=N, ncol=length(alpha))
+# idx <- c(1:length(alpha))
+#
+# nx[ ,idx] <- sample(f(u,alpha[idx]), size=N, replace = TRUE, prob = NULL)
+# for(i in c(1:length(alpha))){
+#   nxs[ ,i] <- nx[ ,i]/sqrt(abs(var(nx[ ,i])))
+#   NXs <- array(nxs[ ,i], dim=c(K, N/K))
+#   Sk[ ,i] <- apply(X=NXs[ ,i], MARGIN=1, FUN=sum)/sqrt(K)
+# }
+```
+
+```{r}
+K = 100
+N = 10**6
+alpha <- c(0.1, 0.25, 0.45)
+p = runif(n=1000, min= -6, max=6)
+
+#sampling with given alpha
+for(i in c(1:length(alpha))){
+  x <- sample(f(u,alpha[i]), size=N, replace = TRUE, prob = NULL)
+  xs <- x/sqrt(abs(var(x)))
+  Xs <- array(xs, dim=c(K, N/K))
+  Sk <- apply(X=Xs, MARGIN=2, FUN=sum)/sqrt(K)
+  s <- paste0("Histogram of S_K with K = 100 and alpha = ", toString(alpha[i]))
+  hist(Sk, main=s, breaks= 21, freq=FALSE, xlim=c(-6, 6), ylim =c(0, 1))
+  points(p ,dnorm(p, mean = 0, sd = 1, log = FALSE), col="blue")
+  #QQ-Plot:
+  s2 <- paste0("QQ-Plot: Sk vs. Normal Distribution for alpha = ", toString(alpha[i]))
+  qqplot(Sk, rnorm(p, mean = 0, sd = 1), xlim=c(-4,4), ylim=c(-4,4), main=s2, ylab="N_(0,1)")
+}
+
+```
+
+e. How does the distribution of $S_{100}^{\alpha}$ behave as a function of $\alpha$ and why?
+
+**Answer:**
+
+The distribution of $S_{100}^{\alpha}$ approaches a normal distribution $N_{0,1}$ for small $\alpha$. However, if $\alpha$ approaches 0.5, the deviation from the normal distribution becames greater and greater as one can see from the last Q-Q-plot. For values of $\alpha$ greater than 0.5 the pdf deviates for small $x$ faster and the variance increases therefore significantly, so that for small $x$ the CLT does not longer hold.  
+
+*Bonus:*
+Derive the variance as a function of \alpha analytically. Which constraint on \alpha does this suggest for the validity of the CLT?
+
+**Answer:**
+
+The variance is given as $\text{Var}(X) = \sqrt{\text{E}(X)^2 - \text{E}(X^2)}$, where $X \sim f_{\alpha}$, and E denotes the expectation value. From the definition of $f_{\alpha}$ follows:
+$$
+\begin{align}
+\text{E}(X) = \int_{-\infty}^{+\infty} x \cdot f_{\alpha}(x)dx &= \int_{-\infty}^{-1} x \cdot \frac{1}{2\alpha}(-x)^{-1-\frac{1}{\alpha}} dx + \int_{1}^{+\infty} x \cdot \frac{1}{2\alpha}x^{-1-\frac{1}{\alpha}} dx \\
+&= \frac{1}{2\alpha} \int_{-\infty}^{-1} (-1)^{-1-\frac{1}{\alpha}} x^{-\frac{1}{\alpha}} dx + \frac{1}{2\alpha} \int_{-\infty}^{-1} x^{-\frac{1}{\alpha}} dx\\
+&= \frac{1}{2\alpha} \dfrac{\alpha}{(\alpha -1)}  \biggl( (-1)^{-\frac{1}{\alpha}} \lbrack x^{-\frac{1}{\alpha}+1} \rbrack_{-\infty}^{-1} + \lbrack x^{-\frac{1}{\alpha}+1} \rbrack_{1}^{+\infty} \biggl)\\
+&= \frac{1}{2(\alpha-1)} ((1-0) - (1-0)) = 0
+\end{align}
+$$
+and:
+$$
+\begin{align}
+\text{E}(X^2) = \int_{-\infty}^{+\infty} x^2 \cdot f_{\alpha}(x)dx &= \int_{-\infty}^{-1} x^2 \cdot \frac{1}{2\alpha}(-x)^{-1-\frac{1}{\alpha}} dx + \int_{1}^{+\infty} x^2 \cdot \frac{1}{2\alpha}x^{-1-\frac{1}{\alpha}} dx \\
+&= \frac{1}{2\alpha} \int_{-\infty}^{-1} (-1)^{-1-\frac{1}{\alpha}} x^{1-\frac{1}{\alpha}} dx + \frac{1}{2\alpha} \int_{-\infty}^{-1} x^{1-\frac{1}{\alpha}} dx\\
+&= \frac{1}{2\alpha} \dfrac{\alpha}{(2\alpha -1)}  \biggl( (-1)^{-\frac{1}{\alpha}} \lbrack x^{2-\frac{1}{\alpha}} \rbrack_{-\infty}^{-1} + \lbrack x^{2-\frac{1}{\alpha}} \rbrack_{1}^{+\infty} \biggl)\\
+&= \frac{1}{2(2\alpha-1)} (1 - \lim_{n \rightarrow \pm \infty} n^{2-\frac{1}{\alpha}})\\
+\Rightarrow \qquad \text{E}(X^2) \rightarrow \frac{1}{2(2\alpha -1)}, \quad \text{if} \quad \alpha < 0.5 
+\end{align}
+$$
+Otherwise we would have $\text{E}(X^2) \rightarrow \pm \infty$ and therefore the variance would diverge. For $\alpha < 0.5$ we have:
+\[ \text{Var}(X) = \sqrt{\text{E}(X) - \text{E}(X^2)} = \sqrt{\frac{1}{2(1-2\alpha)}} = \text{Var}(\alpha) \]
+which apparently diverges for $\alpha \rightarrow 0.5$. 
+
+## Task 2: Estimators
+
+2: Show that \[ \Sigma_N^2 = \frac{1}{N-1}\sum_{i}(X_i - \bar{X}_N)^2\] is an unbiased estimator for the variance $\sigma^2$.
+
+**Solution:**
+If $\Sigma_N^2$ really is an unbiased estimator for the variance $\sigma^2$, the following must be true: \[ \text{E}(\Sigma^2_N) = \sigma^2\]
+
+$$
+\begin{align}
+\Rightarrow \text{E}(\Sigma^2_N) &= \frac{1}{N-1}\text{E}\big(\sum_{i}(X_i - \bar{X}_N)^2\big)\\
+&= \frac{1}{N-1}\text{E}\big(\sum_{i}(X_i^2 - 2X_i\cdot \bar{X}_N +\bar{X}_N^2)\big)\\
+&= \frac{1}{N-1}\text{E}\big(\sum_{i}X_i^2 - 2 \bar{X}_N\bigl(\sum_{i}X_i\bigl) + \sum_{i}\bar{X}_N^2\big)\\
+&=\frac{1}{N-1}\text{E}\big( \sum_{i}X_i^2 - 2 \bar{X}_N (N \cdot \bar{X}_N) + N\bar{X}_N^2\big)\\
+&= \frac{1}{N-1}\text{E}\big( \sum_{i}X_i^2 - 2 \bar{X}_N^2 \cdot N + N\bar{X}_N^2\big)\\
+&= \frac{1}{N-1}\text{E}\big( \sum_{i}X_i^2 - N\bar{X}_N^2\big)\\
+&= \frac{1}{N-1}\big( \sum_{i}\text{E}(X_i^2) - N\cdot \text{E}(\bar{X}_N^2)\big)\\
+\end{align}
+$$
+where 
+$$
+\begin{align}
+\text{E}(\bar{X}_N^2) &= \text{Var}(\bar{X}_N) + \text{E}(\bar{X}_N)^2\\
+&= \text{Var}\biggl(\frac{1}{N}\sum_{i}X_i\biggl) + \frac{1}{N^2}\sum_{i} \text{E}( X_i)\sum_{j} \text{E}( X_j)\\
+&=\frac{1}{N^2}\sum_i\text{Var}(X_i) + \frac{1}{N^2}\sum_{i, j} \text{E}( X_i)\text{E}( X_j)\\
+&=\frac{1}{N^2}\sum_i\text{Var}(X_i) + \frac{1}{N}\sum_{i}\text{E}( X_i)^2
+\end{align}
+$$
+Note: \[ \bar{X}_N = \frac{1}{N}\sum_{i} X_i\] and the sum goes from $i = 1$ to $N$.
+
+$$
+\begin{align}
+\Rightarrow \quad \text{E}(\Sigma_N^2) &= \frac{1}{N-1}\big( \sum_{i}\text{E}(X_i^2) - N\cdot\frac{1}{N^2}\sum_i\text{Var}(X_i) -N\cdot \frac{1}{N}\sum_{i}\text{E}( X_i)^2\big)\\
+&= \frac{1}{N-1}\big( \sum_{i}\text{E}(X_i^2) - \frac{1}{N}\sum_i\text{Var}(X_i) -\sum_{i}\text{E}( X_i)^2\big)\\
+&= \frac{1}{N-1}\big( \sum_{i}\text{Var}(X_i) - \frac{1}{N}\sum_i\text{Var}(X_i)\big)\\
+&= \frac{1}{N-1}\biggl( \frac{(N-1)}{N}\sum_{i}\text{Var}(X_i)\biggl)\\
+&= \frac{1}{N}\sum_{i}\text{Var}(X_i) = \frac{1}{N} N\sigma^2 = \sigma^2, \quad \text{where } \sigma^2 = \text{Var}(X)=\text{Var}(X_i) \text{   } \forall  i
+\end{align}
+$$
+Therefore, $\Sigma_N^2$ is an unbiased estimator for the variance $\sigma^2 = \text{Var}(X)$, since all $X_i$ are independent.
