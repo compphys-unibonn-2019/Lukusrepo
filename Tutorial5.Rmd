@@ -1,0 +1,324 @@
+---
+title: "Tutorial 5"
+author: "Laura Zywietz Rolon"
+date: "11/14/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Linear Regressions
+
+**Task 1: Analysis of the global temperature anomaly data set**
+
+a.) Plot the average annual temperature anomaly versus the years, making the assumption
+that for each year, the anomaly in each month is an independent sample. (use this to
+compute estimates of errors on the year-by-year means)
+
+b.)  Assume further that the data for the anomaly is not correllated between the years.
+
+*Solution:*
+
+First, eliminate all the rows in the given data set, which contain no available data:
+```{r}
+#read data:
+df <- read.csv("http://data.giss.nasa.gov/gistemp/tabledata_v3/GLB.Ts+dSST.csv",
+               header = TRUE, sep=",", skip=1, na.strings="***")
+#delete rows, containing NA values:
+rows_to_delete <- (which(apply(X=is.na(df), MARGIN=1, FUN=any) == TRUE))
+df <- df[- rows_to_delete, ]
+
+```
+
+Then plot the remaining data, i.e. the average annual temperature anomaly versus the remaining years and introduce the standard error for the mean values under the assumption that the data is not correlated between the years:
+```{r}
+years <- df$Year
+df1 <- df
+df1<-df1[ ,-c(1, 14, 15, 16, 17, 18, 19)]
+mvalues <- (apply(X=df1, MARGIN = 1, FUN=mean))
+dy <- apply(X=df1, MARGIN = 1, FUN=sd)
+dy <- dy/sqrt(11)
+plot(x=years, y=mvalues, col="dark red", xlab = "Years", ylab= "Average Annual Temperature Anomaly")
+arrows(x0=years, y0=mvalues-dy, x1=years, y1=mvalues+dy, length=0.01, angle=90, code=3,            col="dark red")
+```
+
+c.) Determine which polynomial degree n = 0, 1, 2, 3 best fits this data.
+
+*Solution:*
+
+The idea is to fit a polynomial $f(x) = y = a + b \cdot x + c \cdot x^2 + d \cdot x^3$ with fit parameters $a,b,c,d$ and degree $n$. Therefore, consider the vector $\beta = (a,b,c,d)^{T}$ and the *VANDERMONDE*-matrix $Z$ of $x_i$. Then the following relations hold:
+\[\text{E}(Y) = \text{E}\left( \begin{array}{r}
+y_1 \\
+y_2 \\
+\vdots \\
+y_n\\
+\end{array}\right) 
+= \left( \begin{array}{rrrr}
+1 & x_1 & x_1^2 & x_1^3 \\
+1 & x_2 & x_2^2 & x_2^3 \\
+\vdots & \vdots & \vdots & \vdots \\
+1 & x_n & x_n^2 & x_n^3 \\
+\end{array}\right) 
+\left( \begin{array}{r}
+a \\
+b \\
+c \\
+d\\
+\end{array}\right) 
+= Z \cdot \beta
+\]
+The estimator $T_{\beta}$ of the coefficient vector $\beta$ is then given by:
+\[T_{\beta} = (Z^{T}C^{-1}Z)^{-1}(Z^{T}C^{-1}Y)\]
+where \[ C = \left( \begin{array}{rrrr}
+\text{Var}(y_1) & 0 & \cdots & 0 \\
+0 & \text{Var}(y_2) & \cdots & 0 \\
+0 & 0 & \ddots & 0\\
+0 & 0 & \cdots & \text{Var}(y_n)\\
+\end{array}\right)
+= \left( \begin{array}{rrrr}
+\sigma^2_1 & 0 & \cdots & 0 \\
+0 & \sigma^2_2 & \cdots & 0 \\
+0 & 0 & \ddots & 0\\
+0 & 0 & \cdots & \sigma^2_n\\
+\end{array}\right)
+\]
+Computing the estimator $T_{\beta}$ gives us the fit parameter $a,b,c, d$. The corresponding $\chi^2$ is then obtained via:
+\[ \chi^2 = (\bar{y} - Z\tilde{\beta})^{T}C^{-1}(\bar{y} - Z\tilde{\beta})
+\]
+where $\tilde{\beta}$ is the estimated $\beta$ from $T_{\beta}$.
+**Note:** In order to get a solution for $T_{\beta}$, one has to subtract the x-values, i.e. the years by the first one, 1880.
+```{r}
+library(matrixcalc)#to compute the vandermonde matrix
+
+#data points
+y <- mvalues
+x <- years-1880
+
+myfit <- function(xv, yv, dyv, n, fitcolor){
+  #Covariance Matrix
+  C <- diag(dyv*dyv, nrow=length(yv), ncol=length(yv))
+  Z <- vandermonde.matrix(xv, n)
+  EstimatorBeta <- solve((t(Z)%*%solve(C)%*%Z))%*%t(Z)%*%solve(C)%*%yv
+  #fit
+  plot(x=xv, y=yv, col="dark red", xlab = "Years-1880",                                            ylab= "Average Annual Temperature Anomaly", main="Results with Fit")
+  arrows(x0=xv, y0=yv-dyv, x1=xv, y1=yv+dyv, length=0.01, angle=90, code=3, col="dark red")
+  lines(x=xv, y=Z%*%EstimatorBeta, col=fitcolor)
+  legend("bottomright", legend=c("data", "fit"), bty="n", col=c("dark red", fitcolor),                pt.bg=c("dark red", fitcolor), pch=21)
+  chiSquared <- t(yv-Z%*%EstimatorBeta)%*%solve(C)%*%(yv-Z%*%EstimatorBeta)/length(yv)
+  #output
+  s <- paste0("Result normed Chi Squared for degree polynomial = ", toString(n))
+  print(s)
+  print(chiSquared)
+}
+
+#fit
+myfit(x, y, dy, 4, "blue")
+myfit(x, y, dy, 3, "dark green")
+myfit(x, y, dy, 2, "black")
+myfit(x, y, dy, 1, "violet")
+```
+One can therefore see, that the polynomial with degree $n = 3$ fits the data best, since then we get the smallest $\chi^2$-value.
+
+## The accept-reject method
+
+**Task 2:** Consider the one-parameter family of probability density functions
+\[ f_{\alpha} = b_{\alpha}\sqrt{1-x^2}\cos(\alpha x)^2\]
+defined on the set $x \in \lbrack-1, 1\rbrack$ and with normalization $b_{\alpha}$
+\[b_{\alpha} = \biggl(\int_{-1}^{1}\sqrt{1-x^2}\cos(\alpha x)^2dx\biggl)^{-1}\]
+
+
+a.) Take first $\alpha = 0$. Sample from $X \sim f_0$ using the accept-reject method with uniform instrumental density $g \sim U(-1,1)$
+\[ g(x) = \frac{1}{2}1_{[-1,1]}(x)\]
+Detemine $b_0$ analytically and compare your observed distribution with the true p.d.f.
+
+*Solution:*
+\[f_0 = b_0\sqrt{1-x^2} \quad \text{with} \quad b_0 = \biggl(\int_{-1}^{1}\sqrt{1-x^2}dx\biggl)^{-1}\]
+with 
+\[\int_{-1}^{1}\sqrt{1-x^2}dx \stackrel{x = \sin(\theta)}{=} \int_{-\frac{\pi}{2}}^{\frac{\pi}{2}}\cos(\theta)^2d\theta = \int_{-\frac{\pi}{2}}^{\frac{\pi}{2}}\frac{1 + \cos(2\theta)}{2}d\theta = \frac{\pi}{2}\]
+\[\Rightarrow \quad f_0 = \frac{2}{\pi}\sqrt{1-x^2}\]
+
+First we determine the upper bound for the function $f_0$, i.e. we demand, that $f_0(x) \leq C \cdot g(x) \quad \forall x$. If we consider $x \in \lbrack-1, 1\rbrack$, we get $f_0^{max} = b_0$ and $g(x) = \frac{1}{2}$ and therefore $b_0 \leq C \cdot \frac{1}{2}$. Therefore, the samllest upper bound for $f_0$ is given by $C = 2b_0$.
+
+Then we use the *Accept-Reject*-algorithm given in the lecture to create $X \sim f_0$:
+
+```{r}
+N = 100000
+
+f0 <- function(t){
+  return(2/pi*sqrt(1-t*t))
+}
+
+#plot function g and f0 in order to check the upper bound C:
+v <- seq(-1,1,0.01)
+plot(x=v, y=f0(v), type = "l", col="green", main = "f0(x) and C*g(x) with C=4/pi", xlab= "x", ylab="f0(x), C*g(x)")
+lines(x=v, y=rep(0.5*4/pi, length(v)), col= "red")
+legend("topleft", legend=c("f0(x)", "C*g(x)"), bty="n", col=c("green", "red"),                pt.bg=c("green", "red"), pch=21)
+
+#accept-reject method:
+x <- runif(n=N, min=-1, max=1)
+y <- runif(n=N, min=0, max=4/pi*0.5)
+idy <- which(y <= f0(x))
+hist(x[idy], freq=FALSE, breaks = 40, xlim = c(-1,1), main = "Histogram of f0(x)", xlab="f0(x)")
+lines(x=seq(-1,1,0.01), y=f0(seq(-1,1,0.01)), col="green")
+legend("topleft", legend="f0(x)", bty="n", col="green", pt.bg="green", pch=21)
+```
+
+b.) Now generalize to $\alpha \neq 0$. Sample $X \sim f_{\alpha}$ with the accept-reject method and use $f_0$ as your instrumental density. Implement the accept-reject method and explore it for $\alpha \in (0,16\rbrack$ in a rough stepping.
+
+*Solution:*
+
+Since we use now $f_0$ as our instrumental density function, we have to find the upper bound $C$ in order that $f_{\alpha}(x) \leq C\cdot f_0(x) \quad \forall x$, where $x \in \lbrack -1,1 \rbrack$. We can make the following approximation:
+\[ f_{\alpha}(x) = b_{\alpha}\sqrt{1-x^2}\cos(\alpha x)^2 \leq b_{\alpha}\sqrt{1-x^2}\]
+And therefore:
+\[ f_{\alpha}(x) \leq b_{\alpha}\sqrt{1-x^2} \stackrel{!}{\leq} C \cdot f_0(x) = C\cdot \frac{2}{\pi}\sqrt{1-x^2}\]
+\[\Leftrightarrow \quad b_{\alpha} \cdot \frac{\pi}{2} \leq C \quad \Rightarrow \quad C_{min} = b_{\alpha} \cdot\frac{\pi}{2}\]
+
+In the following task, we choose $b_{\alpha} = 1$ and therefore we get $C=\frac{\pi}{2}$.
+
+```{r}
+#function f_alpha
+fa <- function(z, a, ba){
+  return(ba*sqrt(1-z*z)*cos(a*z)**2)
+}
+
+#parameters:
+alpha = 7
+ba = 1.227
+C = ba*pi/2
+
+#plot function f_alpha and f0 in order to check the upper bound C:
+v1 <- seq(-1,1,0.01)
+plot(x=v1, y=fa(v1, alpha, ba), type="l", col="blue", main = "f_alpha(x), C*f0(x) with  C=b_alpha*pi/2",      xlab= "x", ylab="f_alpha(x), C*f0(x)")
+lines(x=v1, y=C*f0(v1), col = "green")
+legend("topleft", legend=c("f_alpha(x)", "C*f0(x)"), bty="n", col=c("blue", "green"),               pt.bg=c("blue", "green"), pch=21)
+
+#accept-reject method:
+getfa <- function(alpha, C, ba, xval, N, p){
+  x1 <- xval
+  y1 <- runif(n=length(x1), min=0, max=C*f0(x1))
+  idy1 <- which(y1 <= fa(x1, alpha, ba))
+  n <- length(x1[idy1]) # number of accepted x1
+  #plot if p is true
+  if(p == TRUE){
+    t <- seq(-1,1,0.01)
+    s <- paste0("Histogram of f_alpha(x) with alpha = ", toString(alpha))
+    hist(x1[idy1], freq=FALSE, breaks=100, xlim= c(-1,1), ylim=c(0,1.4), main=s, xlab = "f_alpha(x)")
+    lines(x=t, y=C*f0(t), col = "green")
+    lines(x=t, y=fa(t, alpha, ba), col = "blue")
+    legend("topleft", legend=c("f_alpha(x)", "C*f0(x)"), bty="n", col=c("blue", "green"),                           pt.bg=c("blue", "green"), pch=21)
+    #print number of accepted x1
+    s1 <- paste0("Number of accepted x divided by number of tests in % with alpha = ", toString(alpha))
+    print(s1)
+    print(n/length(x1) *100)
+  }
+  return(n/length(x1)*100)
+}
+
+#get instrumental density from exercise a):
+xval <- x[idy]
+
+#Results for f_alpha for different alpha:
+alphas <- seq(0, 30, 0.25)
+accpratio <- rep(0, length(alphas))
+
+for(i in c(1:length(alphas))){
+  accpratio[i] <- getfa(alphas[i], C, ba, xval, N, p=FALSE)
+}
+
+getfa(2, C, ba, xval, N, TRUE)
+getfa(3, C, ba, xval, N, TRUE)
+getfa(5, C, ba, xval, N, TRUE)
+getfa(7, C, ba, xval, N, TRUE)
+getfa(9, C, ba, xval, N, TRUE)
+getfa(10, C, ba, xval, N, TRUE)
+```
+
+c.) Why does the accept-reject algorithm not require explicit knowledge of $b_{\alpha}$?
+
+*Answer:*
+As shown previously, $b_{\alpha}$ can be chosen arbitrarily, without downgrading the success of this method.
+
+d.) An important measure of efficiency is the *acceptance ratio* (AR), which is the ratio of accepted $x$ divided by the number of tests. How does it vary with $\alpha$ and why?
+
+```{r}
+plot(x=alphas, y=accpratio, col = "red", main="Acceptance Ratio of b) vs. alpha", xlab= "alpha", ylab="Acceptance Ratio in %", ylim=c(0,100))
+
+#calculate mean values of the acceptance ratios in %
+yvalues <- array(accpratio, dim=c(length(accpratio), 1))
+malpha <- apply(X=yvalues, MARGIN = 2, FUN=mean)
+print(malpha)
+```
+*Answer:*
+For small values of $\alpha$ we get a high acceptance rate, since then $f_{\alpha}(x) \approx f_0(x)$ because $\cos(\alpha x)^2 \approx 1$ for small $\alpha$. Then the acceptance rate decreases for bigger $\alpha$ an approaches for $\alpha \rightarrow \infty$ 50%.
+
+
+e.) Based on the previous two tasks, can you determine a numerical estimate for $b_{\alpha}$ from your sampling?
+
+*Answer:*
+The acceptance ration is given by the ratio of accepted $x$ divided by the number of tests, as well as by the ratio of the areas under the instrumental density and the target density, i.e. $R = \frac{A_{id}}{A_{td}}= \frac{b_0}{b_{\alpha}}$, which is given by the normalization constants. Therefore, $b_{\alpha} = \text{acceptance ratio}^{-1} \cdot b_0 = \text{acceptance ratio}^{-1} \cdot \frac{2}{\pi} = 1/0.52 \cdot \frac{2}{\pi} \approx 1.3$.
+
+f.) c.f. d.) 
+
+g.) The generalization of the accept-reject-method to multiple dimensions is easy. We can sample from the distribution with p.d.f.
+\[ f_\alpha^D = \sqrt{1-|x|^2}\prod_{i=1}^D\cos(\alpha^ix_i^i)^21_{|x|^2<1} \]
+\[|x|^2 = x_1^2 + ... + x_D^2\]
+by generating D-tuples $[x_1, x_2, ..., x_D]$ and performing the same test as above, accepting or rejecting the entire tuple.
+
+i.) Implement the accept-reject method for $D\in \lbrace 2,3,...,5\rbrace$
+
+ii.) For $\alpha = 2$, what can you say about the acceptance ratio as function of D?
+
+*Solution:*
+
+```{r}
+#parameters
+N <- 1000000
+D <- c(2:5)
+alpha <- 2
+
+#function f_alpha_D
+faD <- function(t, a){
+  r <- sum(t*t)
+  z <- (a*t)**c(1:length(t))
+  g <- prod(cos(z)**2)  
+  return(sqrt(1-r)*g)
+}
+
+#accept-reject method
+getfaD <- function(N, D, a, p){
+  #instrumental density = box 
+  u <- runif(n=D*N, min = -1, max = 1)
+  x <- array(u, dim = c(N, D))
+  res <- apply(x*x, MARGIN = 1, FUN = sum)
+  ii <- which(res >= 1)
+  x <- x[-ii, ] # eliminate all D-tupel which do not fulfill the condition |x|^2<1
+  #accept-reject method
+  yval <- runif(n=length(x[,1]))
+  jj <- which(yval <= apply(x, MARGIN = 1, FUN = faD, a))
+  #plot histo and function for D = 2 (3d)
+  if(p == TRUE){
+    # library(scatterplot3d)
+    # scatterplot3d(x = x[,1], y = x[,2], z = apply(x, MARGIN = 1, FUN = faD, a), color=                  "red", angle = 40)
+    library(hexbin)
+    library(RColorBrewer)
+    rf <- colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+    h <- hexbin(x[jj, ], xbins = 150)
+    plot(h, colramp = rf, xlab = "x_i", ylab = "y_i")
+  }
+  #acceptance ratio
+  A <- length(x[jj,1])/length(x[ ,1])*100
+  return(A)
+  # return(x[jj, ])
+}
+
+#print the histo for D=2 (3d)
+result <- getfaD(N, D[1], alpha, TRUE)
+#get the acceptance ratios for all D and plot them
+w <- rep(0, length(D))
+for (i in c(1:4)){w[i] <- getfaD(N, D[i], alpha, FALSE)}
+plot(x = D, y = w, col = "red", xlab = "D", ylab = "Acceptance Ratio", main = "Acceptance Ratio vs. D for alpha = 2")
+```
+
+The acceptance ratio seems to decrease exponentially with greater $D$ for $\alpha = 2$. To show this relationship, one can also compute the corresponding qq-plot.
