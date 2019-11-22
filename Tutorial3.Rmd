@@ -65,7 +65,7 @@ The last (a,m) pair corresponds to an infamous random number generator named RAN
 
 Finally, generate plots of order 10000 points of
 \[ (X_{i}/m, X_{i+1}/m, X_{i+2}/m), \qquad i = 1,2,...\]
-(3d scatter plots). Can you visually observe correlations? 
+(3d scatter plots). Can you visually observe correlations?
 You will see why RANDU became infamous.
 
 **Solution 2**
@@ -73,7 +73,7 @@ You will see why RANDU became infamous.
 ```{r}
 #Linear Congruential Random Number Generator
 lCRNG <- function(a, m, v){
-  (a * v) %% m 
+  (a * v) %% m
 }
 
 generateRN <- function(a, m, N){
