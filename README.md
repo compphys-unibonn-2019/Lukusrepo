@@ -1,3 +1,3 @@
 # Lukusrepo
 
-TEST
+Solutions to all the exercises of the tutorials.
