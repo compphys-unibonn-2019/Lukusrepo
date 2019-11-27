@@ -1,0 +1,217 @@
+---
+title: "Tutorial7"
+author: "Laura Zywietz Rolon"
+date: "11/27/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Autocorrelation
+
+**Task 1:**
+We want to study autocorrelation in a time series. As a toy model we use the following one-dimensional random walk
+
+\[X_{i+1} = \alpha X_i + (1-\alpha)\epsilon_i, \quad \forall i \in \mathbb{N}\]
+and $\epsilon_i \sim \mathbb{U}[0,1]$ is uniformly distributed and $\alpha \in [0,1]$.
+Imagine we run this forever, which gives a random variable $X_\infty$. 
+
+a.) What are the expectation value $\mathbb{E}(X_\infty)$, the variance Var($X_\infty$)?
+
+*Solution:*
+One can easily deduce, that the $n^{th}$ random variable $X_n$ ist given after $n$ recursions, by
+\[X_n = \alpha^n X_0 + (1-\alpha)\sum_{i=0}^n\alpha^{n-i}\epsilon_i\]
+Then the expectation value of $X_\infty = \lim_{n \to \infty} X_n$ is then given by:
+$$
+\begin{align}
+\mathbb{E}(X_\infty) &= \mathbb{E}(\lim_{n \to \infty} X_n) = \mathbb{E}(\lim_{n \to \infty} (\alpha^n X_0 + (1-\alpha)\sum_{i=0}^n\alpha^{n-i}\epsilon_i))\\
+&= \lim_{n \to \infty} (\alpha^n \mathbb{E}(X_0)) + (1-\alpha)\lim_{n \to \infty}\mathbb{E}(\sum_{i=0}^n\alpha^{n-i}\epsilon_i)\\
+&= \lim_{n \to \infty} (\alpha^n \mathbb{E}(X_0)) + (1-\alpha)\lim_{n \to \infty}\sum_{i=0}^n\alpha^{n-i}\mathbb{E}(\epsilon_i)\\
+&=\lim_{n \to \infty} (\alpha^n \mathbb{E}(X_0)) + (1-\alpha)\frac{1}{2}\sum_{j=0}^\infty\alpha^{j}\\
+&=
+\begin{cases}
+  \mathbb{E}(X_0)) & \alpha = 1\\
+  0 + \frac{1}{2}(1-\alpha)\frac{1}{1-\alpha} = \frac{1}{2} & \alpha \neq 1
+\end{cases}
+\end{align}
+$$
+using that $\mathbb{E}(\epsilon_i) = 1/2$, and $\sum_{i=0}^\infty\alpha^{i} \stackrel{|\alpha| < 1}{=} \frac{1}{1-\alpha} $. 
+
+Similarly, the variance of $X_\infty = \lim_{n \to \infty} X_n$ is given by:
+$$
+\begin{align}
+\text{Var}(X_\infty) &= \text{Var}(\lim_{n \to \infty} (\alpha^n X_0 + (1-\alpha)\sum_{i=0}^n\alpha^{n-i}\epsilon_i))\\
+&=
+\begin{cases}
+  \text{Var}((1-\alpha)\lim_{n \to \infty}\sum_{i=0}^n\alpha^{n-i}\epsilon_i) & \alpha \neq 1\\
+  \text{Var}(X_0) & \alpha = 1
+\end{cases}\\
+&=
+\begin{cases}
+  (1-\alpha)^2\lim_{n \to \infty}\sum_{i=0}^n(\alpha^{i})^2\text{Var}(\epsilon_i) & \alpha \neq 1\\
+  \text{Var}(X_0) & \alpha = 1
+\end{cases}\\
+&=
+\begin{cases}
+  \frac{1}{12}(1-\alpha)^2\frac{1}{1-\alpha^2} & \alpha \neq 1\\
+  \text{Var}(X_0) & \alpha = 1
+\end{cases}\\
+&=
+\begin{cases}
+  \frac{1}{12}\frac{1-\alpha}{1+\alpha} & \alpha \neq 1\\
+  \text{Var}(X_0) & \alpha = 1
+\end{cases}\\
+\end{align}
+$$
+where all $\epsilon_i$ are independent and therefore $\sum_{i=0}^n \text{Var}(\epsilon_i) = \text{Var}(\sum_{i=1}^n\epsilon_i)$. Furthermore, $\text{Var}(\epsilon_i) = 1/12$.
+
+b.) What is the covariance of any two variables $X_i, X_k$, $i,k >0$, in the sequence analytically?
+
+We compute
+$$
+\begin{align}
+\text{Cov}(X_i, X_k) &= \text{Cov}(X_i, X_{i+l}) = \text{Cov}(X_i, \alpha^{i+l} X_0 + (1-\alpha)\sum_{j=0}^{i+l}\alpha^{i+l-j}\epsilon_j)\\ 
+&= \text{Cov}(X_i, \alpha^{l} X_i + (1-\alpha)\sum_{j=0}^{l}\alpha^{l-j}\epsilon_{j+i})\\ 
+&= \text{Cov}(X_i, \alpha^lX_i) + \text{Cov}(X_i, (1-\alpha)\sum_{j=0}^{l}\alpha^{l-j}\epsilon_{j+i})\\
+&= \alpha^l\text{Cov}(X_i, X_i) + (1-\alpha)\sum_{j=0}^{l}\alpha^{l-j}\text{Cov}(X_i, \epsilon_{j+i})\\
+&= \alpha^l\text{Var}(X_i)
+\end{align}
+$$
+since $\text{Cov}(X_i, X_i) = \text{Var}(X_i)$, $\text{Cov}(X_i,\epsilon_{j+i}) = 0$ for $j > 0$ and the covariance is bilinear. 
+
+c.) What is the autocorrelation time $\tau_{int}$? What happens for $\alpha \rightarrow 0$ and $\alpha \rightarrow 1$?
+
+*Solution:*
+$$
+\begin{align}
+\tau_{int} &= \frac{1}{2}\sum_{t = - \infty}^\infty \Gamma(t) = \frac{1}{2}\sum_{t = - \infty}^\infty  \frac{\text{Cov}(X_i, X_{i+t})}{\text{Var}(X_i)}\\
+&= \frac{1}{2} 2 \sum_{t = 1}^\infty \alpha^t + \frac{1}{2}\\
+&= \frac{1}{2} 2 \sum_{t = 0}^\infty \alpha^t - \frac{1}{2}\\
+&= \frac{1}{1-\alpha}-\frac{1}{2} = \frac{1}{2}\frac{1 + \alpha}{1-\alpha}
+\end{align}
+$$
+where we used that the covariance is a symmetric function and c.).
+
+d.) We want to estimate the mean with the estimator
+\[\bar{X}_N = \frac{1}{N} \sum_{m=1}^N X_{\infty+m}\] 
+What is the variance (or the error) of this estimator up to $\mathcal{O}(1/N^2)$?
+
+$$
+\begin{align}
+\text{Var}(\bar{X}_N) &= \text{Var}(\frac{1}{N}\sum_{m=1}^N X_{\infty+m})  = \frac{1}{N^2}\text{Var}(\sum_{m=1}^N X_{\infty+m})\\
+&= \frac{1}{N^2}\text{Var}(X_{\infty+1} + X_{\infty+2} + ... + X_{\infty+N})\\
+&= \frac{1}{N^2}[\sum_{m=1}^N \text{Var}(X_{\infty+m}) -2\sum_{n=1}^N\sum_{m=1}^N\text{Cov}(X_{\infty+n}, X_{\infty+m})]\\
+&=  \quad ... \quad \approx \frac{1}{N}\frac{1}{12}
+\end{align}
+$$
+
+*Solution:*
+
+**Task 2:**
+Now let's assume that we do not know the detailed construction of the $X_n$, i.e. we are only given the sequence $X_1, X_2, ...$ without knowing about the $\epsilon$'s, etc.. So we need to deduce everything from sampling the sequence.
+
+a.) Implement the sampling and the estimation of Var($X_\infty$), Cov($X_\infty,X_{\infty+m}$) and $\tau_{int}$. AS a stopping criterion for the summation of the correlation function use the condition $W_{max} > \lbrace4\sim10\rbrace \tau_{int}(W_{max})$.
+
+**Solution:**
+
+We use: 
+\[X_n = \alpha^n X_0 + (1-\alpha)\sum_{i=0}^n\alpha^{n-i}\epsilon_i\] for $n$ big as our estimate for $X_\infty$. 
+```{r}
+#parameters:
+#------------------------------------
+N = 100     #"infinity"
+alpha = 0.5
+M = 5       #m
+n <- 500000 # sample-size, 
+
+#functions:
+#------------------------------------
+#generate time series X_i
+generateTimeSeries <- function(N, alpha){
+  u <- runif(N)
+  x <- numeric(N)
+  x[1] <- runif(1)
+  for (i in c(2:N)) {
+    x[i] <- alpha * x[i-1] + (1-alpha) * u[i-1]
+  }
+  return(x)
+}
+
+#get n X_oo samples with infinity = N
+getXsam <- function(n, N, alpha){
+  ii <- c(1:N)
+  x <- rep(0, n)
+  for (i in c(1:n)) {
+    epsilon <- runif(n=N)
+    seed <- runif(1)
+    x[i] <- alpha**N *seed + (1-alpha)*sum(alpha**(N-ii)*epsilon[ii])
+  }
+  return(x)
+}
+
+#get n X_oo samples with infinity = N and n X_oo+m samples with m = M
+getXsamforCov <- function(n, N, M, alpha){
+  ii <- c(1:N)
+  jj <- c(1:(N+M))
+  x <- rep(0, n)
+  y <- rep(0,n)
+  for (i in c(1:n)) {
+    epsilon <- runif(n=N+M)
+    seed <- runif(1)
+    x[i] <- alpha**N *seed + (1-alpha)*sum(alpha**(N-ii)*epsilon[ii])
+    y[i] <- alpha**(N+M) *seed + (1-alpha)*sum(alpha**((N+M)-jj)*epsilon[jj])
+  }
+  X <- array(data=c(x,y), dim = c(n, 2))
+  return(X)
+}
+
+#results:
+#------------------------------------
+x <- getXsamforCov(n, N, M, alpha)
+
+#variance of X_oo
+x_var <- var(x[,1])
+print("Computed variance of X_oo:")
+print(var(x[,1]))
+print("Theoretically expected variance of X_oo:")
+print(1/12*(1-alpha)/(1+alpha))
+
+#covariance of X_oo+m and X_oo
+p <- cov(x[ ,2], x[ ,1])
+print("Computed covariance of X_oo+m, X_oo:")
+print(p)
+print("Theoretically expected covariance of X_oo+m, X_oo:")
+print(alpha**M*1/12*(1-alpha)/(1+alpha))
+
+#autocorrelation
+Xi <- generateTimeSeries(n, alpha)
+myacf <- acf(Xi)
+
+#integrated autocorrelation time 
+Wmax <- length(myacf$acf)
+t_int <- 0.5*cumsum(myacf$acf[c(1:Wmax)])
+print("Computed integrated autocorrelation time:")
+print(t_int[Wmax])
+print("Theoretically expected integrated autocorrelation time:")
+print(0.5*(1+alpha)*1/(1-alpha))
+#plot integrated autocorrelation time
+plot(x=c(0:(length(t_int)-1)),y=t_int ,col="red", xlab = "t", ylab = "t_int", main = "Integrated autocorrelation time for different lags t")
+```
+
+b.) We estimate the variance Var($X_\infty$) and the integrated autocorrelation time  $\tau_{int}$ and get the variance of $\bar{X}_N$ from
+\[\text{Var($\bar{X}_N$)} = \frac{2}{N}\text{Var($X_\infty$)}\tau_{int}\]
+Does it work? Compare also the formulas derived above.
+
+**Solution:**
+
+```{r}
+print("Computed Variance of X_N:")
+print(2/n*x_var*t_int[Wmax])
+print("Theoretically expected Variance of X_N:")
+print(1/12*1/n)
+```
+Conclusion: It works.
