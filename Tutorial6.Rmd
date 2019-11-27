@@ -1,0 +1,178 @@
+---
+title: "Tutorial6"
+author: "Laura Zywietz Rolon"
+date: "11/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Autocorrelation
+
+**Task 1: Analysis of the global temperature anomaly data set - Part 2**
+
+a.) compute the autocorrelation function using the corresponding R function for the mean yearly anomaly, determined from the average over the four quarters of the year.
+
+*Solution:*
+
+**Note:** The autocorrelation is meant to be calculated for the difference of the mean temperature anomalies per year between two following years. Futhermore the corresponding errors are calculated via
+\[\sigma = \sqrt{\text{Var}(\bar{\Gamma}(t))} \approx \sqrt{\frac{1}{N} \sum_{i=1}^{t+\Lambda} \lbrack \bar{\Gamma}(i+t) + \bar{\Gamma}(i-t) - 2\bar{\Gamma}(i)\bar{\Gamma}(t)\rbrack^2}\]
+where $\bar{\Gamma}(t)$ depicts the autocorrelation function, and $\Lambda$ a chosen cut-off value, i.e. a time $t$ for which the autocorrelation has approached zero.
+
+```{r}
+#read data:
+df <- read.csv("http://data.giss.nasa.gov/gistemp/tabledata_v3/GLB.Ts+dSST.csv",
+               header = TRUE, sep=",", skip=1, na.strings="***")
+#delete rows, containing NA values:
+rows_to_delete <- (which(apply(X=is.na(df), MARGIN=1, FUN=any) == TRUE))
+df <- df[- rows_to_delete, ]
+
+#plot data with errors
+years <- df$Year-1880
+y <- df[ ,-c(1:13)]
+mvalues <- (apply(X=y, MARGIN = 1, FUN=mean))
+dy <- apply(X=y, MARGIN = 1, FUN=sd)
+dy <- dy/sqrt(11)
+plot(x=years, y=mvalues, col="dark red", xlab = "Years-1880", ylab= "Average Annual Temperature Anomaly")
+arrows(x0=years, y0=mvalues-dy, x1=years, y1=mvalues+dy, length=0.01, angle=90, code=3, col="dark red")
+
+#compute autocorrelation with errors of the difference between the mean values between two following years:
+r <- diff(mvalues, lag=1)
+N <- length(r)
+
+#calculate autocorrelation
+lambda <- 3
+acfr <- acf(r, plot=FALSE)
+m <- length(acfr$acf)
+# bor <- (m-1-lambda)/2
+#fill with zeros up to length 2*m+lambda+1 in order 
+#to compute the autocorrelation error for all values
+acfr$acf[(m+1):(2*m+1+lambda)] <- 0 
+
+#calculate corresponding errors
+
+dr <- rep(0, m)
+for(t in c(0:(m-1))){
+  i <- c(1:(t+lambda))
+  dr[t+1] <- sum((acfr$acf[i+t+1] + acfr$acf[abs(i-t)+1]-2*acfr$acf[t+1]*acfr$acf[i+1])**2)
+  dr[t+1] <- sqrt(dr[t+1]/N)
+}
+
+#plot the autocorrelation with errors
+ii <- c(1:m)
+plot(x=ii, y=acfr$acf[ii], col="dark red", xlab = "Lag", ylab= "ACF", xlim = c(0,m), ylim=c(-0.4, 1.1), main = "Autocorrelation of the given data")
+arrows(x0=ii, y0=acfr$acf[ii]-dr[ii], x1=ii, y1=acfr$acf[ii]+dr[ii], length=0.01, code=3, col="dark red")
+abline(h=0, lty=2)
+```
+
+b.) implement your own function to compute the autocorrelation function plus error estimate
+
+*Solution:*
+
+The normalised autocorrelation of a stochastic process $X_t$ is defined as:
+\[\Gamma(t) = \frac{1}{C(X)}\text{E}((X_i - \mu)\cdot (X_{i+t} - \mu))\]
+where $C(X_i) = \text{E}((X_i - \mu)\cdot (X_{i} - \mu))$ is the covariance of $X_i$.
+```{r}
+myautocorr <- function(r){
+  C <- cov(r,r)
+  
+  B <- cov(r[ii], r[ii+t])
+  B <- array(NA, dim = c(length(r),length(r)))
+  for(t in c(1:(length(r)))){
+    # t <- c(1:(length(r)-i))
+    ii <- c(1:length(r))
+    # j <- which(ii+t >= length(r))
+    # ii <- ii[-j]
+    B <- cov(r[ii], r[ii+t])
+    # B[i,] <- cov(r[i], r[i+t])/C
+  }
+  return(B/C)
+}
+
+
+# plot(x=c(1:length(r)), y=myautocorr(r))
+```
+
+c.) compute an estimate of the integrated autocorrelation time on this data set.
+
+*Solution:*
+
+The integrated autocorrelation time is given by
+\[ \tau_{int,X} = \frac{1}{2} \sum_{t = -\infty}^{\infty} \Gamma_x(t)\] 
+with autocorrelation $\Gamma_x(t)$.
+
+```{r}
+```
+
+# Regression towards the mean
+
+**Task2:**
+
+Let $X_1, X_2$ be independent and normally distributed random variables with mean zero and variance 1. Consider $Y = X_1 \cdot X_2$.
+
+a.) Write a simulation programme to determine mean and variance of Y.
+
+*Solution:*
+
+```{r}
+N <- 1000000
+x1 <- rnorm(n=N)
+x2 <- rnorm(n=N)
+y <- x1*x2
+
+#plot histos
+hist(x1,breaks = 40, freq = FALSE, xlim = c(-4,4))
+hist(x2, breaks = 40, freq = FALSE, xlim = c(-4,4))
+hist(y, breaks = 200, freq = FALSE, xlim = c(-4,4))
+
+#check wether y is a gaussian distribution
+# qqplot(x1,y)
+
+#calculate mean and variance of y
+mymean <- mean(y)
+myvar <- var(y)
+print("Mean of Y:")
+print(mymean)
+print("Variance of Y:")
+print(myvar)
+```
+
+b.) Use the programme to determine the probability for $Y < -\text{sd}(Y)$
+
+*Solution:*
+
+```{r}
+g <- which(y < -sd(y))
+p <- length(g)/length(y)
+print(p)
+```
+The probability for $Y < -\text{sd}(Y)$ is $P(Y < -\text{sd}(Y)) = 10.43$%.
+
+c.) Use the programme to determine the probability for $Y < -\text{sd}(Y)$ given $X_1 > n\cdot\text{sd}(X_1)$ with $n = 0,1,2,3,4$.
+What do you conclude from this? (The results should be independet from the sample size).
+
+```{r}
+n <- c(0,1,2,3,4)
+
+#determine the probability for Y < - sd(Y) given X1 > n sd(X1)
+getprob <- function(n){
+  w <- which(x1 > n*sd(x1))
+  yc <- x1[w]*x2[w]
+  g <- which(yc < -sd(y))
+  p <- length(g)/length(yc)
+  return(p)
+}
+
+#print/plot results
+res <- rep(1:length(n))
+for(i in c(1:length(n))){
+  res[i] <- getprob(n[i])*100
+  print(res[i])
+}
+plot(x=n, y=res, col = "red", main="Probability for Y < - sd(Y) given X1 > n sd(X1)", xlab = "n", ylab="Probability in %")
+abline(h=50, lty=2)
+```
+
+One concludes, that the probability for $Y < -\text{sd}(Y)$ gets higher with greater $n$, since only those $X_1$ are taken, with $X_1 > n\cdot\text{sd}(X_1)$, and therefore the $X_1$ values are greater and since $Y = X_1 \cdot X_2$ it gets also greater.
