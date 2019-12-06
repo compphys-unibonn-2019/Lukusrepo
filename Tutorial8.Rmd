@@ -1,0 +1,100 @@
+---
+title: "Tutorial8"
+author: "Laura Zywietz Rolon"
+date: "12/4/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Simulated Annealing
+
+Consider the following data:
+
+$$
+\begin{table}
+  \centering
+  \begin{tabular}{c|c|c}
+  t & y & dy\\
+  \hline
+  1 & 0.94 & 0.11\\
+  2 & 1.95 & 0.10\\
+  3 & 3.15 & 0.13\\
+  \end{tabular}
+\end{table}
+$$
+
+to which we want to fit the two-parameter function 
+\[f(t;a,b) = at +b\]
+minimizing the $\chi^2$. We assume that the data points are independent.
+Implement simulated annealing to minimize the $\chi^2$ function. Compare your result with the standard estimator for linear regressions.
+For your implementation
+
+* make sure you keep track of the minimal value for the $\chi^2$-function and the corresponding parameters the algorithm found.
+* optimise the proposal distribution, which is typically a Gaussian distribution with a certain width.
+* optimise the number of iterations you perform at fixed temperature $T$.
+* optimise your strategy of reducing the temperature T
+```{r}
+#data
+y <- c(0.9411, 1.9510, 3.1513)
+dy <- c(0.11, 0.10, 0.13)
+t <- c(1:length(y))
+
+#chi^2-function
+getX2 <- function(param, y, dy, t){
+  chi2 <- sum(((param[1]*t + param[2]) - y)**2/dy**2)
+  return(chi2)
+}
+
+#simulated annealing
+simann <- function(y, dy, t, Temp, alpha){
+  steps <- 100
+  stepsTemp <- 100
+  xi <- c(1, 0)
+  chi2old <- getX2(xi, y, dy, t)
+  minvals <- xi
+  while(steps > 0){
+    while(stepsTemp > 0){
+      xi[1] <- rnorm(n=1, mean = 1, sd = 1)
+      xi[2] <- rnorm(n=1, mean = 0, sd = 1)
+      chi2new <- getX2(xi, y, dy, t)
+      accept <- FALSE
+      if(chi2new < chi2old) accept <- TRUE
+      else if(runif(1) < exp((chi2old-chi2new)/Temp)) accept <- TRUE
+      if(accept){
+        minvals <- xi
+        chi2old <- chi2new
+      }
+      stepsTemp <- stepsTemp - 1
+    }
+    stepsTemp = 100
+    Temp <- alpha * Temp
+    steps <- steps - 1
+  }
+  return(minvals)
+}
+
+#optimal values for X^2 and parameter a,b:
+param <- c(1,0)
+myfit <- optim(par = param, fn=getX2, y=y, dy=dy, t=t)
+print("With R calculated X^2:")
+print(myfit$value)
+print("With R calculated parameters a, b:")
+print(myfit$par)
+
+#minimal X^2 and parameter a,b calculated with simulated annealing:
+minvals <- simann(y,dy,t ,100, 0.9)
+print("Simulated Annealing:")
+print("Parameters a, b:")
+print(minvals)
+print("X^2:")
+print(getX2(minvals,y,dy,t))
+
+plot(x=t, y=y, ylim=c(0.5,3.5), col = "blue", main = "y(t) with fit ")
+arrows(x0=t, y0=y-dy, x1=t, y1=y+dy, length= 0.05, angle=90, code=3, col = "blue")
+lines(x=t, y=(myfit$par[1]*t + myfit$par[2]), col = "red")
+lines(x=t, y=(minvals[1]*t + minvals[2]), col = "green")
+
+```
