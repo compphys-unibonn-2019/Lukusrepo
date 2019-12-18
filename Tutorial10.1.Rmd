@@ -1,0 +1,111 @@
+---
+title: "Tutorial 10"
+author: "Laura Zywietz Rolon"
+date: "12/18/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Ising Model - part 2
+
+**1:** During last week's exercise we have implemented the Hamiltonian for the $d = 2$-dimensional Ising model with nearest neighbour interactions. Moreover, we have implemented $\Delta H = H(s') - H(s)$, where $s= \lbrace s_1, ..., s_j, ... \rbrace$ and $s'= \lbrace s_1, ..., s'_j, ... \rbrace$, i.e. they differ only at a single lattice site.
+
+In this exercise we will expand on this: use the functions implemented last week to implement a Random-Walk Metropolis-Hastings algorithm for the Ising model at temperature $T$.
+
+*Solution:*
+
+First consider the function to calculate the Hamiltonian/the energy of the Ising Model, implemented in the last tutorial:
+```{r}
+#calculate Hamiltonian for Ising model (from Tutorial 9)
+getH <- function(N, J, h, spin){
+  res <- 0
+  for (i in c(1:N)) {
+    for (j in c(1:N)) {
+      res <- sum(J*spin[i, j]*(spin[i, (j-1)%%N] + spin[i, (j+1)%%N] + spin[(i-1)%%N, j] + spin[(i+1)%%N, j]))
+    }
+  }
+  H <- -0.5*res - h*sum(spin)
+  return(H)
+}
+```
+
+```{r, echo = FALSE}
+#deprecated functions
+flipSpin <- function(pos, spin){
+  spin[pos[1], pos[2]] <- -1* spin[pos[1], pos[2]]
+  return(spin)
+}
+
+getFlippedSpinPos <- function(N){
+  j <- round(runif(n=2, min = 1, max = N))
+  return(j)
+}
+
+getDeltaH <- function(N, J, h, pos, spin1){
+  flippedSpin <- spin1[pos[1], pos[2]]
+  neighb <- sum(spin1[pos[1], (pos[2]-1-1)%%N+1] + spin1[pos[1], (pos[2]+1-1)%%N+1] + spin1[(pos[1]-1-1)%%N+1, pos[2]] + spin1[(pos[1]+1-1)%%N+1, pos[2]])
+  return(2*J*flippedSpin*neighb + 2*flippedSpin*h)
+}
+```
+
+Now, the Random-Walk Metroplis-Hastings algorithm to minimise the energy $H$ can be implemented as follows:
+```{r}
+#Random-Walk Metropolis-Hastings
+rmdWalkMetroHast <- function(N, J, h, spin, Temp){
+  steps <- 1e5
+  while (steps > 0) {
+    #get random position where the spin is flipped
+    p1 <- sample.int(N, size=1, replace=TRUE)
+    p2 <- sample.int(N, size=1, replace=TRUE)
+    
+    #calculate DeltaH
+    neighb <- sum(spin[p1, (p2-1-1)%%N+1]+spin[p1, (p2+1-1)%%N+1]+spin[(p1-1-1)%%N+1, p2]+spin[(p1+1-1)%%N+1, p2])
+    DeltaH <- (2*(J*neighb + h)*spin[p1, p2])
+    
+    #minimise H using simulated annealing
+    accept <- FALSE
+    if(DeltaH < 0) accept <- TRUE
+    else if(runif(1) < exp(-1*DeltaH/Temp)) accept <- TRUE
+    if(accept){
+      #flip spin if this state has a smaller energy
+      spin[p1, p2] <- -1*spin[p1, p2]
+    }
+    steps <- steps - 1
+  }
+  return(spin)
+}
+```
+
+Note that $\Delta H = H(s) - H(s') = 2 \cdot J \cdot s_p \sum_i s_i + 2\cdot h \cdot s_p$, where $s_p$ describes the spin that is going to be flipped. This can be deduced by the formula of $H$ given in the last exercise and the fact that only one spin is flipped, looking at an concreate example lattice. The position of the spin that is going to be flipped is chosen randomly between 1 and $N$ for each dimension. For the calculation of the nearest neighbours we assume again periodic boundary conditions, like before. Note that, since indices in $R$ start counting at 1, the modulo operation used has to be shifted accordingly to get the correct result, even if the value 0 is taken.
+Futhermore, since $H$ is to be minimised, we demand $H(s') < H(s) \Leftrightarrow \Delta H < 0$.
+
+```{r}
+library(plotrix) #plot results
+
+#result
+J = 1
+h = 1
+N = 100 # NxN-lattice
+Temp <- 1 #temperature
+
+#generatespin-lattice
+s <- sample(c(-1,1), N*N, replace = TRUE)
+spin <- matrix(s, nrow = N, ncol = N)
+# spin1 <- matrix(rep(1, N*N), nrow = N, ncol = N)
+
+
+#minimal spin configuration on NxN-lattice
+minspinconfig <- rmdWalkMetroHast(N, J, h, spin, Temp)
+#minimal energy
+minE <- getH(N, J, h, minspinconfig)
+print(minE)
+# print(getH(N,J,h, spin1))
+
+#plot minimal spin configuration
+color2D.matplot(-1*spin, main="Spin Matrix before", border = NA)
+color2D.matplot(-1*minspinconfig, main="Spin Matrix after", border = NA)
+
+```
